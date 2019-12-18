@@ -1,5 +1,7 @@
 #!/usr/bin/python3
-fn = "intnetscaler.conf"
+# Inititial gloal arrays
+#fn = "intnetscaler.conf"
+fn = "extnetscaler.conf"
 m_avs = []          # Add Virtual Server
 m_bvs = []          # Bind Virtual Server
 m_acs = []          # Add Content Server
@@ -79,7 +81,7 @@ def gen_irule ():
 #  print ('ltm rule /Common/_vs_filenet_test_HTTPS {') 
  return;
 
-
+# This fuction takes the srvgrp list and turns into a list of dictionaries
 def gen_pools():
  pool_lines = [ a[2] + ' ' + b[3] + ' ' + b[4] for a in m_asvcg for b in m_bsvcg if a[2] == b[2]]
 # pool_lines = [p.split(' ') for p in pool_lines] 
@@ -90,20 +92,34 @@ def gen_pools():
 #  print (pool_key)
   pool_dict = { pool_key[0] : pool_key[1:] for i in range (0, len(pool_key)) }
   m_pool_dict.append( pool_dict )
- print (m_pool_dict[2]['svcgrp_ad_auth_sslp'])
-
-
-
- 
- pool_l1 = 'tmsh create ltm pool'
- pool_l2 = '''{ monitor tcp load-balancing-mode  least-connections-member
- members replace-all-with {'''
-# print( pool_l1, pool_list[0], pool_l2, pool_list[3])
+#  print (m_pool_dict[2]['svcgrp_ad_auth_sslp'])
  return;
 
+
+
+# Main function calls
 proc_conf ()
 gen_irule ()
 gen_pools ()
+
+#for key in m_pool_dict[66].keys():
+# print (key)
+
+#  This fuction takes a known servicegroup name and outputs all of conf lines
+#  in a single list.  The intent is to call this function from a function that
+#  produces the tmsh pool creation text.
+
+def get_pool_out( pool_key ):
+ pool_out = []
+ pool_out.append( pool_key )
+ for p in range(0, len(m_pool_dict)):
+  if pool_key in m_pool_dict[p]: 
+   pool_out.append( m_pool_dict[p][pool_key] )
+ return (pool_out);
+pool_out = get_pool_out( 'svcgrp_wase_devinti_855')
+print ( pool_out )
+
+
 # Diagnostic
 #print ( *m_avs, sep = ' ' + '\r\n')
 #print ( *m_bvs, sep = ' ' + '\r\n')

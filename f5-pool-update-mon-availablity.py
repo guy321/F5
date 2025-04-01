@@ -10,22 +10,22 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # BIG-IP details
 bigip_ip = "10.0.0.111"          # Replace with your BIG-IP IP <<===================================================================================
 username = "admin"               # Replace with your username <<====================================================================================
-password = getpass.getpass("Enter your password: ")   # Replace with your password
+password = getpass.getpass("Enter your password: ")   # Replace with your password from terminal password prompt
 
-#To be change to pulling from the f5 device for all pools in all tenants
+# To be change to pulling from the f5 device for each pools in all usable tenants
 pool_name = "~tyf5wauxapi-vip~tyF5wauxapi-vip_ssl-app~pool_tyF5wauxapi-vip_ssl"  # Replace with your pool name
 
+# Lists of system and none loadbalancing teants on the F5 device that we do NOT want to touch
 tentants_exclude_list = ["/", "Common", "Drafts", "EPSEC", "Status", "POLICYSYNC_pvr-sites-internal", "ServiceDiscovery", "appsvcs", "asm_nsyncd", "atgTeem", "bigiq-analytics.app", "datasync-global" , "f5-appsvcs-templates", "ssloGS_global.app"]
-#tentants_exclude_list = []
 
 def get_tenants(exclude=None):
     
-    #Retrieve a list of tenants (partitions) from the BIG-IP.
+    #Retrieve a list of tenants (partitions) from the BIG-IP sys folder.
     
     url = f"https://{bigip_ip}/mgmt/tm/sys/folder"
     response = requests.get(url, auth=HTTPBasicAuth(username, password), verify=False)
     
-
+    # Catch for none 200OK http status
     if response.status_code != 200:
         print("Error retrieving tenants:", response.text)
         return []
@@ -39,18 +39,21 @@ def get_tenants(exclude=None):
         for folder in folders
     ]
     
-    if exclude is None:
-        exclude = []
+    # if exclude is None:
+    #     exclude = []
     
-    # Filter out tenants based on multiple conditions    
+    # Filter out tenants based on multiple conditions. Catch for any tenant that name stats with device-group and or is in the above exlucde list, 
+    # and also if the tenant returned does not have a partition path. 
+    # No partition path idicates it is the tenant class object from AS3 deployments, 
+    # where if the path was present it would most likely be ppplication class object from the AS3 deoployments.     
     tenants = [
         tenant["name"] for tenant in tenants_search 
         if tenant["name"] not in exclude 
             and not tenant["name"].startswith("device-group")
-            and tenant["partition"] == ""
-            
-    ]        
-    
+            and tenant["partition"] == ""            
+    ] 
+
+    # Count number of tenants found
     tenant_count = len(tenants)
 
     return tenants, tenant_count
@@ -60,13 +63,16 @@ def get_pools(tenant):
     #Retrieve a list of pools for the given tenant.
     
     # Use the partition query parameter to filter pools by tenant
-    url = f"https://{bigip_ip}/mgmt/tm/ltm/pool?partition={tenant}"
+    url = f"https://{bigip_ip}/mgmt/tm/ltm/pool?partition={tenant}" # still need work to match api path in the update_pool func, this is wrong <---------------------------------
     response = requests.get(url, auth=HTTPBasicAuth(username, password), verify=False)
+    
     if response.status_code != 200:
         print(f"Error retrieving pools for tenant '{tenant}':", response.text)
         return []
+    
     items = response.json().get('items', [])
-    # Return a list of pool names (you can modify this to return the full details)
+
+    # Return a list of pool names
     pools = [pool['name'] for pool in items]
     return pools
 
@@ -77,6 +83,7 @@ def update_pool():
 
     #GET the current pool configuration
     get_response = requests.get(url, auth=HTTPBasicAuth(username, password), verify=False)
+
     if get_response.status_code != 200:
         print("Error retrieving pool configuration:", get_response.text)
         exit()
@@ -98,6 +105,9 @@ def update_pool():
     }
 
     # New monitor to be set for the pool (example payload)
+
+    # This need to be replaced with whatever monitors are already 
+    # in the pool and passed back into the patch with the updated Availabiity Requirement to all in the monitor string 
     payload = {
         "monitor": "/Common/tcp and /Common/gateway_icmp and /Common/https"
     }

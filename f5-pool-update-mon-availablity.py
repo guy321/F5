@@ -1,3 +1,12 @@
+#
+#
+# This script is to update the Availability Requirement from "At least X" to ALL monitors already associated on a F5 Networks BIGIP Pools
+# Is primaily setup for modiify pools that are NOT in the /Common partition / tenant (in the case of AS3 deployments)
+# You can modify the tenants_exclude_list var to allow the script to search through the /Common or /Shared paritition/tenant as needed
+#
+# Author - m3rl1n
+#
+#
 import requests
 from requests.auth import HTTPBasicAuth
 import json
@@ -12,8 +21,8 @@ bigip_ip = "10.0.0.111"          # Replace with your BIG-IP IP
 username = "admin"               # Replace with your username 
 password = getpass.getpass(f"Enter your password for user {username} on device {bigip_ip}: ")   # Replace with your password from terminal password prompt
 
-# Lists of system and none loadbalancing teants on the F5 device that we do NOT want to touch
-tentants_exclude_list = ["/", "Common", "Drafts", "EPSEC", "Status", "POLICYSYNC_pvr-sites-internal", "ServiceDiscovery", "appsvcs", "asm_nsyncd", "atgTeem", "bigiq-analytics.app", "datasync-global" , "f5-appsvcs-templates", "ssloGS_global.app"]
+# Lists of default and none loadbalancing partitions/teants on the F5 device that we do NOT want to touch
+tentants_exclude_list = ["/", "Common", "Shared" "Drafts", "EPSEC", "Status", "POLICYSYNC_pvr-sites-internal", "ServiceDiscovery", "appsvcs", "asm_nsyncd", "atgTeem", "bigiq-analytics.app", "datasync-global" , "f5-appsvcs-templates", "ssloGS_global.app"]
 
 # Show reponse data in output like GET Response JSON: {'kind': 'tm:ltm:pool:poolstate'...............
 # 0 = no
@@ -23,6 +32,8 @@ response_output = 0
 # Global counts
 g_tenant_count = 0
 g_pool_count = 0
+g_pool_bad_count = 0
+bad_pools = []  # List to store pools that don't have a monitor
 
 #######################################################
 
@@ -89,6 +100,7 @@ def get_pools(tenant):
     return pools_info, pool_count
 
 def update_pool(pool_path):
+    global g_pool_bad_count, g_pool_count
 
     # Construct the API URL. The default partition is often "Common"
     url = f"https://{bigip_ip}/mgmt/tm/ltm/pool/{pool_path}"
@@ -105,9 +117,18 @@ def update_pool(pool_path):
 
     # Show full reponse data if varable is set to 1
     if response_output == 1:
-        print("\n")
-        print("GET Response JSON:", data)
+        print("\nGET Response JSON:", data)
     
+    pool_name = data.get('name', pool_path)
+    # Use get() to safely retrieve monitor; if missing or empty, trap the error.
+    monitor_value = data.get('monitor', None)
+    if not monitor_value or monitor_value.strip() == "":
+        print(f" --- No monitor found for pool: {pool_name} / {pool_path} <=====================\n")
+        bad_pools.append(pool_name)
+        g_pool_bad_count += 1
+        g_pool_count -= 1
+        return
+
     # Print the monitor key from the JSON response    
     print(" --- Monitor original value:", data['monitor'])
 
@@ -115,12 +136,10 @@ def update_pool(pool_path):
     headers = {"Content-Type": "application/json"}
 
     # New monitor to be set for the pool (example payload)
-    payload = ""
-    mon_str = data['monitor']
-    start_index = mon_str.find("{")
-    end_index = mon_str.rfind("}")
+    start_index = monitor_value.find("{")
+    end_index = monitor_value.rfind("}")
     if start_index != -1 and end_index != -1:
-        result = mon_str[start_index+1:end_index].strip()
+        result = monitor_value[start_index+1:end_index].strip()
         print(f" --- Monitor updated value: {result}") 
         payload = {"monitor": result}
         print(f" --- Json playload: {payload}")
@@ -171,4 +190,9 @@ if __name__ == "__main__":
                 print(f" -- Updating pool: {pool['name']}")          
                 update_pool(pool['path'])
             
-        print(f"\nUpdate complete\n{g_tenant_count} tenants and {g_pool_count} pools reviewed\n")        
+        print(f"\nUpdate complete\n{g_tenant_count} tenants and {g_pool_count} pools reviewed")
+        print(f"{g_pool_bad_count} pool(s) without monitors")
+        if g_pool_bad_count > 0:
+            for pool_name in bad_pools:
+                print(f" - {pool_name}")
+        print("\n")                

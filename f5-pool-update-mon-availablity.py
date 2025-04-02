@@ -4,8 +4,6 @@
 # Is primaily setup for modiify pools that are NOT in the /Common partition / tenant (in the case of AS3 deployments)
 # You can modify the tenants_exclude_list var to allow the script to search through the /Common or /Shared paritition/tenant as needed
 #
-# Author - m3rl1n
-#
 #
 import requests
 from requests.auth import HTTPBasicAuth
@@ -144,7 +142,7 @@ def update_pool(pool_path):
         payload = {"monitor": result}
         print(f" --- Json playload: {payload}")
     else:
-        print(" --- Monitor Availability update NOT needed\n")
+        print(" --- Monitor Availability update NOT needed")
         return
     
     # Send a PATCH request to update the monitor field
@@ -183,10 +181,10 @@ if __name__ == "__main__":
             # Print pools names within the selected tenant
             for pool in pools:
                 print(f" - Pool Name: {pool['name']}")
-            print("\n")    
+            
             # Print pool info and update monitor availbily value 
             for pool in pools:
-                print(f" - Pool Name: {pool['name']}, Pool Path: {pool['path']}")
+                print(f"\n - Pool Name: {pool['name']}, Pool Path: {pool['path']}")
                 print(f" -- Updating pool: {pool['name']}")          
                 update_pool(pool['path'])
             

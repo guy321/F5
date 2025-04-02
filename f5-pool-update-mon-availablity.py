@@ -12,9 +12,6 @@ bigip_ip = "10.0.0.111"          # Replace with your BIG-IP IP <<===============
 username = "admin"               # Replace with your username <<====================================================================================
 password = getpass.getpass("Enter your password: ")   # Replace with your password from terminal password prompt
 
-# To be change to pulling from the f5 device for each pools in all usable tenants
-pool_name = "~tyf5wauxapi-vip~tyF5wauxapi-vip_ssl-app~pool_tyF5wauxapi-vip_ssl"  # Replace with your pool name
-
 # Lists of system and none loadbalancing teants on the F5 device that we do NOT want to touch
 tentants_exclude_list = ["/", "Common", "Drafts", "EPSEC", "Status", "POLICYSYNC_pvr-sites-internal", "ServiceDiscovery", "appsvcs", "asm_nsyncd", "atgTeem", "bigiq-analytics.app", "datasync-global" , "f5-appsvcs-templates", "ssloGS_global.app"]
 
@@ -60,10 +57,35 @@ def get_tenants(exclude=None):
 
 def get_pools(tenant):
     
-    #Retrieve a list of pools for the given tenant.
+    # #Retrieve a list of pools for the given tenant.
+    
+    # # Use the partition query parameter to filter pools by tenant
+    # url = f"https://{bigip_ip}/mgmt/tm/ltm/pool"
+    # response = requests.get(url, auth=HTTPBasicAuth(username, password), verify=False)
+    
+    # if response.status_code != 200:
+    #     print(f"Error retrieving pools for tenant '{tenant}':", response.text)
+    #     return []
+    
+    # items = response.json().get('items', [])
+
+    # # Return a list of pool names tha match the selected tenant
+    # pools = [
+    #     pool['name'] for pool in items
+    #     if pool['partition'] == tenant
+    # ]
+    # pool_path  = [
+    #     pool['fullPathj'].replace("/","~") for pool in items
+    #     if pool['partition'] == tenant
+    # ]
+    # return pools, pool_path
+
+
+    #  Retrieve a list of pools for the given tenant as dictionaries containing both
+    # the pool name and the cleaned-up pool path (with slashes replaced by tildes).
     
     # Use the partition query parameter to filter pools by tenant
-    url = f"https://{bigip_ip}/mgmt/tm/ltm/pool?partition={tenant}" # still need work to match api path in the update_pool func, this is wrong <---------------------------------
+    url = f"https://{bigip_ip}/mgmt/tm/ltm/pool"
     response = requests.get(url, auth=HTTPBasicAuth(username, password), verify=False)
     
     if response.status_code != 200:
@@ -71,15 +93,22 @@ def get_pools(tenant):
         return []
     
     items = response.json().get('items', [])
+    
+    pools_info = [
+        {
+            "name": pool["name"],
+            "path": pool["fullPath"].replace("/", "~")
+        }
+        for pool in items
+        if pool["partition"] == tenant
+    ]
+    
+    return pools_info
 
-    # Return a list of pool names
-    pools = [pool['name'] for pool in items]
-    return pools
-
-def update_pool():
+def update_pool(pool_path):
 
     # Construct the API URL. The default partition is often "Common"
-    url = f"https://{bigip_ip}/mgmt/tm/ltm/pool/{pool_name}"
+    url = f"https://{bigip_ip}/mgmt/tm/ltm/pool/{pool_path}"
 
     #GET the current pool configuration
     get_response = requests.get(url, auth=HTTPBasicAuth(username, password), verify=False)
@@ -92,12 +121,10 @@ def update_pool():
     data = get_response.json()
     print("\n")
     print("GET Response JSON:", data)
-    print("\n")
-    print("Pool Name", data['name'])
-
+    
     # Print the monitor key from the JSON response
     print("\n")      
-    print("Monitor value:", data['monitor'])
+    print("Monitor original value:", data['monitor'])
 
     # Set headers to indicate JSON content
     headers = {
@@ -105,27 +132,33 @@ def update_pool():
     }
 
     # New monitor to be set for the pool (example payload)
-
-    # This need to be replaced with whatever monitors are already 
-    # in the pool and passed back into the patch with the updated Availabiity Requirement to all in the monitor string 
-    payload = {
-        "monitor": "/Common/tcp and /Common/gateway_icmp and /Common/https"
-    }
-
+    payload = ""
+    s = data['monitor']
+    start_index = s.find("{")
+    end_index = s.rfind("}")
+    if start_index != -1 and end_index != -1:
+        result = s[start_index+1:end_index].strip()
+        print(f"Monitor updated value: {result}") 
+        payload = {"monitor": result}
+        print(payload)
+    else:
+        print("Monitor Availability update NOT needed\n")
+        return
+    
     # Send a PATCH request to update the monitor field
     response = requests.patch(
         url,
         auth=HTTPBasicAuth(username, password),
         headers=headers,
         data=json.dumps(payload),
-        verify=False  # Use verify=True in production with valid certificates
+        verify=False
     )
 
     print("\n")
     print("Status Code:", response.status_code)
     print("\n")
     print("Patch Response JSON:", response.json())
-
+    print("\n")
 
 if __name__ == "__main__":
     # First, list all tenants (partitions)
@@ -133,17 +166,20 @@ if __name__ == "__main__":
     tenants = get_tenants(exclude=tentants_exclude_list)[0]
     if not tenants:
         print("No usable tenants found.")
-    else:        
+    else:
+        # For each tenant show the pools        
         for tenant in tenants:
-            print(f"{tenant}")
-    
-    # print("\nListing pools within each tenant:")
-    # # For each tenant, list pools found
-    # for tenant in tenants:
-    #     print(f"\nTenant: {tenant}")
-    #     pools = get_pools(tenant)
-    #     if pools:
-    #         for pool in pools:
-    #             print(f"    Pool: {pool}")
-    #     else:
-    #         print("    No pools found in this tenant.")
+            print(f"\nTenant: {tenant}")            
+            pools = get_pools(tenant)
+            
+            for pool_list in pools:
+                print(f" - Pool Name: {pool_list['name']}")
+
+            print("\n Starting to update pools\n")
+            
+            for pool in pools:
+                print(f" - Pool Name: {pool['name']}, Pool Path: {pool['path']}")
+                print(f" -- Updating pool: {pool['name']}")          
+                update_pool(pool['path'])
+            
+            print("\nUpdating pools complete\n")

@@ -1,0 +1,60 @@
+
+Traceback (most recent call last):
+  File "C:\Users\jkagy\AppData\Local\Programs\Python\Python313\Lib\site-packages\urllib3\response.py", line 754, in _error_catcher
+    yield
+  File "C:\Users\jkagy\AppData\Local\Programs\Python\Python313\Lib\site-packages\urllib3\response.py", line 879, in _raw_read
+    data = self._fp_read(amt, read1=read1) if not fp_closed else b""
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\jkagy\AppData\Local\Programs\Python\Python313\Lib\site-packages\urllib3\response.py", line 862, in _fp_read
+    return self._sock.recv_into(b)
+           ~~~~~~~~~~~~~~~~~~~~^^^
+  File "C:\Users\jkagy\AppData\Local\Programs\Python\Python313\Lib\ssl.py", line 1304, in recv_into
+    return self.read(nbytes, buffer)
+           ~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "C:\Users\jkagy\AppData\Local\Programs\Python\Python313\Lib\ssl.py", line 1138, in read
+    return self._sslobj.read(len, buffer)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\jkagy\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\models.py", line 820, in generate
+    yield from self.raw.stream(chunk_size, decode_content=True)
+  File "C:\Users\jkagy\AppData\Local\Programs\Python\Python313\Lib\site-packages\urllib3\response.py", line 1066, in stream
+    data = self.read(amt=amt, decode_content=decode_content)
+  File "C:\Users\jkagy\AppData\Local\Programs\Python\Python313\Lib\site-packages\urllib3\response.py", line 955, in read
+    data = self._raw_read(amt)
+  File "C:\Users\jkagy\AppData\Local\Programs\Python\Python313\Lib\site-packages\urllib3\response.py", line 878, in _raw_read
+    with self._error_catcher():
+         ~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\jkagy\AppData\Local\Programs\Python\Python313\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Users\jkagy\AppData\Local\Programs\Python\Python313\Lib\site-packages\urllib3\response.py", line 781, in _error_catcher
+    raise ProtocolError(f"Connection broken: {e!r}", e) from e
+urllib3.exceptions.ProtocolError: ("Connection broken: ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None)", ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "c:\Users\jkagy\OneDrive - Micron Technology, Inc\git-repos\F5\f5-pool-update-mon-availablity.py", line 180, in <module>
+    print(f"\nTenant: {tenant} - {get_pools(tenant)[1]} pools")
+                                  ~~~~~~~~~^^^^^^^^
+  File "c:\Users\jkagy\OneDrive - Micron Technology, Inc\git-repos\F5\f5-pool-update-mon-availablity.py", line 85, in get_pools
+    response = requests.get(url, auth=HTTPBasicAuth(username, password), verify=False)
+  File "C:\Users\jkagy\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\api.py", line 73, in get
+    return request("get", url, params=params, **kwargs)
+  File "C:\Users\jkagy\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\api.py", line 59, in request
+    return session.request(method=method, url=url, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\jkagy\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+  File "C:\Users\jkagy\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\sessions.py", line 746, in send
+    r.content
+  File "C:\Users\jkagy\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\models.py", line 902, in content
+    self._content = b"".join(self.iter_content(CONTENT_CHUNK_SIZE)) or b""
+                    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\jkagy\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\models.py", line 822, in generate
+    raise ChunkedEncodingError(e)
+requests.exceptions.ChunkedEncodingError: ("Connection broken: ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None)", ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None))
